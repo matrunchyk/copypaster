@@ -1,96 +1,115 @@
-> See [`CLAUDE.md`](CLAUDE.md) for build, deploy, source layout, and maintainer notes. See also [`../CLAUDE.md`](../CLAUDE.md) for shared conventions across the `minecraft` repo.
+<p align="center">
+  <img src="docs/banner.png" alt="Copy Paster — copy and paste Minecraft structures with player-relative positioning" width="640">
+</p>
 
-# Copy Paster
+<p align="center">
+  <strong>Copy cuboid regions to files. Paste them back exactly where you mean to — anchored to your position.</strong>
+</p>
 
-**Copy Paster** is a Fabric **client + server** mod that saves a box-shaped slice of the world to a file and pastes it back later. Paste position follows **where you stand** when you copy and when you paste.
+<p align="center">
+  <img src="https://img.shields.io/badge/Minecraft-26.1.2-green?style=flat-square" alt="Minecraft 26.1.2">
+  <img src="https://img.shields.io/badge/Fabric-0.19.2-DBD0B4?style=flat-square&logo=fabricmc&logoColor=white" alt="Fabric Loader 0.19.2">
+  <img src="https://img.shields.io/badge/Java-25-blue?style=flat-square&logo=openjdk&logoColor=white" alt="Java 25">
+  <img src="https://img.shields.io/badge/version-2.1.0-informational?style=flat-square" alt="Version 2.1.0">
+</p>
 
-**Minecraft 26.1.2** · **Fabric Loader 0.19.2** · **Fabric API** (required)
+---
 
-All commands require **operator** status on the server.
+**Copy Paster** is a Fabric **client + server** mod for survival and creative builders who want a fast, visual way to duplicate structures without leaving the game. Select a box in the world, name it in chat, then paste it later — position follows **where you stand** at copy time and paste time, so offsets stay intuitive.
+
+- **Interactive `/copy`** — click two corners; live wireframe preview while you aim  
+- **Paste ghost preview** — cyan outline when blocks would be overwritten  
+- **Undo** — `/pasteundo` restores the last paste (in-memory until restart)  
+- **Ukrainian (`uk_ua`)** — full UI strings alongside English  
+- **Configurable highlights** — `config/copypaster.yml` or optional Mod Menu + Cloth Config  
+
+> Maintainer docs: [`CLAUDE.md`](CLAUDE.md) · Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 
 ---
 
 ## Install
 
-1. Run a **Fabric** server with **Fabric API** installed.
-2. Put `copy_paster-<version>.jar` in the server **`mods/`** folder.
-3. Put the **same JAR** in each player’s client **`mods/`** folder (required for interactive `/copy`, paste preview, and highlights).
+| Where | What |
+|-------|------|
+| **Dedicated server** | `copy_paster-<version>.jar` in `mods/` + **Fabric API** |
+| **Each player** | **Same JAR** in client `mods/` (required for `/copy`, previews, HUD) |
 
-**Server-only fallback:** coordinate `/copy` and all `/paste` commands still work; bare `/copy` will ask you to install the client mod or use coordinates.
+**Server-only mode:** coordinate `/copy x1 y1 z1 x2 y2 z2` and all `/paste` commands still work; bare `/copy` needs the client mod.
 
-**Optional:** [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config) for in-game highlight colour settings (otherwise edit `config/copypaster.yml`).
+**Optional:** [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config) for in-game highlight colour.
 
 ---
 
 ## Quick start
 
-### Save a region (interactive)
+### 1 · Save a region
 
-1. Stand where you want the **anchor** for this copy.
-2. Run **`/copy`** (no arguments).
-3. **Attack** (left-click) the first corner block, then the second. A blue wireframe shows the box while you aim.
-4. Press **Use** (right-click) to cancel and start over.
-5. In **chat**, type a structure name (`a`–`z`, `0`–`9`, `_`, `-`, up to 64 chars). Type **`cancel`** to abort (60 second limit).
+1. Stand at the **anchor** point you want for this copy.  
+2. Run **`/copy`**.  
+3. **Attack** corner 1, then corner 2 (blue wireframe follows your crosshair).  
+4. **Use** (right-click) to cancel anytime.  
+5. Type a structure name in **chat** (`a`–`z`, `0`–`9`, `_`, `-`, max 64 chars). Type **`cancel`** to abort (60 s).
 
-### Save a region (legacy coordinates)
+**Legacy:** `/copy <x1> <y1> <z1> <x2> <y2> <z2>` then name in chat — or bind **`[`** / **`]`** under *Options → Controls → Miscellaneous* (unbound by default).
 
-```
-/copy <x1> <y1> <z1> <x2> <y2> <z2>
-```
+### 2 · Paste it back
 
-Then type the structure name in chat as above.
-
-### Paste a region
-
-1. Stand in the **same relative spot** you used when copying.
-2. Run `/paste <name>`.
-3. If blocks would be overwritten, you’ll see a **cyan wireframe** (with client mod). Run `/paste <name> confirm` to proceed.
-4. Note the **undo ID** in chat for `/pasteundo <id>`.
-
----
-
-## Client controls
-
-Rebind in **Options → Controls → Miscellaneous**. **`[`** and **`]`** are **not assigned by default.**
-
-| Input | Action |
-|-------|--------|
-| `/copy` | Interactive selection |
-| Attack block | Corners 1 and 2 during interactive `/copy` |
-| Use | Cancel interactive selection |
-| **`[`** (if bound) | Legacy corner 1 |
-| **`]`** (if bound) | Legacy corner 2 + `/copy` with coordinates |
+1. Stand in the **same relative spot** you used when copying.  
+2. `/paste <name>` — confirm with `/paste <name> confirm` if the ghost preview warns about overwrites.  
+3. Save the **undo ID** from chat for `/pasteundo <id>`.
 
 ---
 
 ## Commands
 
-| Command | What it does |
-|---------|----------------|
-| `/copy` | Interactive selection (client mod required) |
+| Command | Description |
+|---------|-------------|
+| `/copy` | Interactive block selection (client mod) |
 | `/copy <x1> <y1> <z1> <x2> <y2> <z2>` | Coordinate selection |
-| `/paste <name>` | Paste at your anchor |
+| `/paste <name>` | Paste at player-relative anchor |
 | `/paste <name> confirm` | Paste after overwrite warning |
-| `/pasteundo <id>` | Undo one paste |
+| `/pasteundo <id>` | Restore blocks from one paste |
 | `/copylist` | List saved structures |
-| `/copyinfo <name>` | Metadata for a structure |
-| `/copydelete <name>` | Delete a saved structure |
+| `/copyinfo <name>` | Size, dimension, offset, metadata |
+| `/copydelete <name>` | Remove `.nbt` + `.json` |
+
+All commands require **operator** on the server.
 
 ---
 
-## Limits and tips
+## Controls
 
-| Topic | Detail |
+| Input | Action |
 |-------|--------|
-| **Max region size** | **32 768** blocks |
-| **Undo** | In memory only; lost on server restart |
-| **Storage** | Server: `copypaster/structures/` (`.nbt` + `.json`) |
-| **Highlight colour** | `config/copypaster.yml` on the client |
-
-See [`CHANGELOG.md`](CHANGELOG.md) for version history.
+| `/copy` | Start interactive selection |
+| Attack block | Set corners 1 → 2 |
+| Use | Cancel selection |
+| **`[`** / **`]`** (if bound) | Legacy corner shortcut |
 
 ---
 
-## For developers
+## Limits & storage
 
-Build, deployment, and architecture: **[`CLAUDE.md`](CLAUDE.md)**.
+| | |
+|---|---|
+| **Max volume** | 32 768 blocks |
+| **Files** | Server `copypaster/structures/` — `<name>.nbt` + `<name>.json` |
+| **Undo** | In memory only; cleared on server restart |
+| **Highlight colour** | Client `config/copypaster.yml` |
+
+---
+
+## Build
+
+```bash
+./gradlew clean jar
+# → build/libs/copy_paster-<version>.jar
+```
+
+Requires **Java 25**. See [`CLAUDE.md`](CLAUDE.md) for deploy runbook (Fabric on gserver).
+
+---
+
+## License
+
+See repository license file if present; otherwise treat as private CrazyHouse tooling until a license is added.
