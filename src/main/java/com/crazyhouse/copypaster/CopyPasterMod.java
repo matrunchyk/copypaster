@@ -2,11 +2,14 @@ package com.crazyhouse.copypaster;
 
 import com.crazyhouse.copypaster.model.PendingCopy;
 import com.crazyhouse.copypaster.model.UndoSnapshot;
-import com.crazyhouse.copypaster.net.GhostPayload;
+import com.crazyhouse.copypaster.net.CopyPasterNetworking;
+import com.crazyhouse.copypaster.net.CopySelectPayload;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.InteractionResult;
 import com.crazyhouse.copypaster.service.StructureStorageService;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -24,7 +27,9 @@ public class CopyPasterMod implements ModInitializer {
 
     public static final Logger LOGGER = LoggerFactory.getLogger("copypaster");
     public static final Map<UUID, PendingCopy> PENDING = new ConcurrentHashMap<>();
+    public static final Map<UUID, Long> SELECTING = new ConcurrentHashMap<>();
     public static final Map<String, UndoSnapshot> UNDOS = new ConcurrentHashMap<>();
+    public static final long SESSION_TIMEOUT_MS = 60_000L;
     public static StructureStorageService STORAGE;
 
     private static final Pattern VALID_NAME = Pattern.compile("^[a-zA-Z0-9_-]{1,64}$");
@@ -34,8 +39,18 @@ public class CopyPasterMod implements ModInitializer {
         Path dataDir = FabricLoader.getInstance().getGameDir().resolve("copypaster");
         STORAGE = new StructureStorageService(dataDir);
 
-        // Register the S2C ghost packet (used by copy_paster_client to preview paste location)
-        PayloadTypeRegistry.clientboundPlay().register(GhostPayload.TYPE, GhostPayload.CODEC);
+        CopyPasterNetworking.registerPayloadTypes();
+
+        AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (!level.isClientSide() && SELECTING.containsKey(player.getUUID())) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(CopySelectPayload.TYPE, (payload, context) ->
+            context.server().execute(() ->
+                CopyPasterCommands.handleCopySelect(context.player(), payload)));
 
         CopyPasterCommands.register();
 
@@ -48,21 +63,23 @@ public class CopyPasterMod implements ModInitializer {
 
             if (text.equalsIgnoreCase("cancel")) {
                 PENDING.remove(sender.getUUID());
-                sender.sendSystemMessage(Component.literal("Copy cancelled.").withStyle(ChatFormatting.GREEN));
+                CopyPasterCommands.sendSelectionClear(sender);
+                sender.sendSystemMessage(Component.translatable("copypaster.message.copy_cancelled")
+                    .withStyle(ChatFormatting.GREEN));
                 return false;
             }
 
-            if (System.currentTimeMillis() - pending.createdAt() > 60_000L) {
+            if (System.currentTimeMillis() - pending.createdAt() > SESSION_TIMEOUT_MS) {
                 PENDING.remove(sender.getUUID());
-                sender.sendSystemMessage(Component.literal(
-                    "Copy session expired. Run /copy again.").withStyle(ChatFormatting.RED));
+                CopyPasterCommands.sendSelectionClear(sender);
+                sender.sendSystemMessage(Component.translatable("copypaster.message.copy_session_expired")
+                    .withStyle(ChatFormatting.RED));
                 return false;
             }
 
             if (!VALID_NAME.matcher(text).matches()) {
-                sender.sendSystemMessage(Component.literal(
-                    "Invalid name '" + text + "'. Use a-z A-Z 0-9 _ - (max 64). Try again or type cancel."
-                ).withStyle(ChatFormatting.RED));
+                sender.sendSystemMessage(Component.translatable("copypaster.message.invalid_name", text)
+                    .withStyle(ChatFormatting.RED));
                 return false;
             }
 
@@ -70,21 +87,25 @@ public class CopyPasterMod implements ModInitializer {
             final String name = text;
             try {
                 STORAGE.save(sender, name, pending);
-                sender.sendSystemMessage(Component.literal(
-                    "Structure '" + name + "' saved.").withStyle(ChatFormatting.GREEN));
+                CopyPasterCommands.sendSelectionClear(sender);
+                sender.sendSystemMessage(Component.translatable("copypaster.message.structure_saved", name)
+                    .withStyle(ChatFormatting.GREEN));
                 LOGGER.info("[COPY] {} saved '{}'", sender.getName().getString(), name);
             } catch (Exception e) {
-                sender.sendSystemMessage(Component.literal(
-                    "Failed to save: " + e.getMessage()).withStyle(ChatFormatting.RED));
+                sender.sendSystemMessage(Component.translatable("copypaster.message.failed_save", e.getMessage())
+                    .withStyle(ChatFormatting.RED));
                 LOGGER.error("Failed to save structure '{}': {}", name, e.getMessage(), e);
             }
             return false; // suppress broadcast
         });
 
-        // Remove pending copy when player disconnects
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-            PENDING.remove(handler.getPlayer().getUUID())
-        );
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID id = handler.getPlayer().getUUID();
+            PENDING.remove(id);
+            if (SELECTING.remove(id) != null) {
+                CopyPasterCommands.sendSelectionClear(handler.getPlayer());
+            }
+        });
 
         LOGGER.info("CopyPaster enabled.");
     }

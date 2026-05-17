@@ -9,65 +9,66 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.resources.Identifier;
+import com.mojang.blaze3d.platform.InputConstants;
 
 /**
- * [ — set Pos1 to the block the crosshair is aimed at (shows orange corner cube)
- * ] — set Pos2; once both are set, sends /copy automatically (shows yellow box)
- *
- * The server responds with "type a structure name in chat", same as always.
+ * {@code [} — start corner, {@code ]} — end corner (order does not matter).
+ * While selecting, the box follows the crosshair for the end corner.
+ * {@code ]} with both corners set runs coord {@code /copy} (each press updates the region).
  */
 @Environment(EnvType.CLIENT)
 public final class KeyHandler {
 
-    private static final KeyMapping KEY_POS1 = new KeyMapping(
-            "key.copypaster.pos1", GLFW.GLFW_KEY_LEFT_BRACKET,  KeyMapping.Category.MISC);
-    private static final KeyMapping KEY_POS2 = new KeyMapping(
-            "key.copypaster.pos2", GLFW.GLFW_KEY_RIGHT_BRACKET, KeyMapping.Category.MISC);
+    public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
+            Identifier.fromNamespaceAndPath("copypaster", "copypaster"));
+
+    private static final KeyMapping KEY_START = new KeyMapping(
+            "key.copypaster.pos1", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(),
+            CATEGORY);
+    private static final KeyMapping KEY_END = new KeyMapping(
+            "key.copypaster.pos2", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(),
+            CATEGORY);
 
     static void register() {
-        KeyMappingHelper.registerKeyMapping(KEY_POS1);
-        KeyMappingHelper.registerKeyMapping(KEY_POS2);
+        KeyMappingHelper.registerKeyMapping(KEY_START);
+        KeyMappingHelper.registerKeyMapping(KEY_END);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (KEY_POS1.consumeClick()) handleKey(client, 1);
-            while (KEY_POS2.consumeClick()) handleKey(client, 2);
+            while (KEY_START.consumeClick()) handleKey(client, true);
+            while (KEY_END.consumeClick()) handleKey(client, false);
         });
     }
 
-    private static void handleKey(Minecraft client, int which) {
+    private static void handleKey(Minecraft client, boolean startCorner) {
         if (client.player == null || client.level == null) return;
+        if (SelectionPreview.phase() == SelectionPreview.Phase.PENDING) return;
 
-        if (!(client.hitResult instanceof BlockHitResult bhr) || bhr.getType() != HitResult.Type.BLOCK) {
-            client.player.sendOverlayMessage(
-                    Component.literal("Look at a block first.").withStyle(ChatFormatting.RED));
+        BlockPos pos = SelectionPreview.resolveSolidHover(client);
+        if (pos == null) {
+            client.player.sendSystemMessage(
+                    Component.translatable("copypaster.overlay.look_at_block")
+                            .withStyle(ChatFormatting.RED));
             return;
         }
 
-        BlockPos pos = bhr.getBlockPos();
-
-        if (which == 1) {
-            GhostRenderer.selPos1 = pos;
-            GhostRenderer.selPos2 = null;
-            client.player.sendOverlayMessage(
-                    Component.literal("Pos1 → " + pos.getX() + " " + pos.getY() + " " + pos.getZ())
-                             .withStyle(ChatFormatting.YELLOW));
+        if (startCorner) {
+            SelectionPreview.setAnchorStart(pos);
         } else {
-            if (GhostRenderer.selPos1 == null) {
-                client.player.sendOverlayMessage(
-                        Component.literal("Set Pos1 first ( [ key ).").withStyle(ChatFormatting.RED));
-                return;
+            SelectionPreview.setAnchorEnd(pos);
+            if (SelectionPreview.hasBothAnchors()) {
+                submitCoordCopy(client);
             }
-            GhostRenderer.selPos2 = pos;
-            BlockPos p1 = GhostRenderer.selPos1;
-            client.player.sendOverlayMessage(
-                    Component.literal("Pos2 → " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
-                            + "  — sending /copy …").withStyle(ChatFormatting.YELLOW));
-            client.player.connection.sendCommand(String.format("copy %d %d %d %d %d %d",
-                    p1.getX(), p1.getY(), p1.getZ(), pos.getX(), pos.getY(), pos.getZ()));
         }
+    }
+
+    private static void submitCoordCopy(Minecraft client) {
+        BlockPos a = SelectionPreview.corner1();
+        BlockPos b = SelectionPreview.corner2();
+        if (a == null || b == null) return;
+        SelectionPreview.lockEndCorner();
+        client.player.connection.sendCommand(String.format("copy %d %d %d %d %d %d",
+                a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ()));
     }
 
     private KeyHandler() {}

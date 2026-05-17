@@ -36,7 +36,7 @@ public class StructureStorageService {
     ) {}
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int MAX_VOLUME = 32_768;
+    public static final int MAX_VOLUME = 32_768;
 
     private final Path structuresDir;
 
@@ -68,7 +68,7 @@ public class StructureStorageService {
         StructureTemplate template = new StructureTemplate();
         template.fillFromWorld(level, pending.corner1(),
                 new Vec3i(pending.sizeX(), pending.sizeY(), pending.sizeZ()),
-                false, null);
+                true, List.of());
 
         CompoundTag tag = template.save(new CompoundTag());
         try (OutputStream os = Files.newOutputStream(getNbtPath(name))) {

@@ -1,18 +1,23 @@
 {
   "schemaVersion": 1,
   "id": "copypaster",
-  "version": "1.1.1",
+  "version": "2.1.0",
   "name": "Copy Paster",
-  "description": "Copy/paste cuboid regions to/from NBT files with player-relative offset positioning; supports undo. Op-only: /copy /paste /pasteundo /copylist /copyinfo /copydelete. Client: [ / ] keybinds + paste ghost preview.",
-  "authors": [ "Serhii" ],
+  "description": "Client + server Fabric mod: copy/paste cuboid regions to NBT with player-relative offset. Interactive /copy (attack corners, live highlight), paste ghost preview, optional [ ] keybinds. Op-only commands.",
+  "authors": [ "Serhii Matrunchuk" ],
+  "icon": "assets/copypaster/icon.png",
   "environment": "*",
   "entrypoints": {
     "main":   [ "com.crazyhouse.copypaster.CopyPasterMod" ],
-    "client": [ "com.crazyhouse.copypaster.client.CopyPasterClientMod" ]
+    "client": [ "com.crazyhouse.copypaster.client.CopyPasterClientMod" ],
+    "modmenu": [ "com.crazyhouse.copypaster.client.ModMenuIntegration" ]
   },
   "depends": {
     "fabricloader": ">=0.19.2",
     "fabric-api": "*",
     "minecraft": "26.1.2"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

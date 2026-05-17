@@ -1,87 +1,50 @@
 package com.crazyhouse.copypaster.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.ShapeRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.core.BlockPos;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.gizmos.GizmoStyle;
+import net.minecraft.gizmos.Gizmos;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.phys.AABB;
 
 /**
- * Renders two in-world overlays (MC 26.1.2 / LevelRenderEvents API):
- *
- *  1. Selection box  — yellow wireframe around the two corners the player
- *     selected with [ / ] keybinds.
- *
- *  2. Paste ghost    — cyan wireframe at the destination of the next /paste,
- *     populated by the S2C GhostPayload from the server.
+ * In-world overlays via vanilla {@link Gizmos} (fill only, no wireframes).
  */
 @Environment(EnvType.CLIENT)
 public final class GhostRenderer {
 
-    // ── Paste ghost state (set by packet handler) ─────────────────────────────
     static volatile boolean ghostActive = false;
     static volatile int ghostX, ghostY, ghostZ;
     static volatile int ghostSX, ghostSY, ghostSZ;
 
-    // ── Selection corners (set by KeyHandler) ─────────────────────────────────
-    static volatile BlockPos selPos1 = null;
-    static volatile BlockPos selPos2 = null;
-
-    // ── ARGB colours ──────────────────────────────────────────────────────────
-    private static final int GHOST_COLOR = ARGB.color(230, 64,  216, 255); // cyan
-    private static final int POS1_COLOR  = ARGB.color(230, 255, 100,  20); // orange
-    private static final int POS2_COLOR  = ARGB.color(230,  50, 200,  80); // green
-    private static final int SEL_COLOR   = ARGB.color(230, 255, 220,  30); // yellow
+    private static final int GHOST_FILL = ARGB.color(64, 64, 216, 255);
+    private static final float PADDING = 0.002f;
 
     static void register() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(GhostRenderer::render);
+        ClientTickEvents.END_CLIENT_TICK.register(GhostRenderer::emitGizmos);
     }
 
-    private static void render(LevelRenderContext ctx) {
-        MultiBufferSource.BufferSource buf = ctx.bufferSource();
-        VertexConsumer lines = buf.getBuffer(RenderTypes.lines());
-        PoseStack matrices   = ctx.poseStack();
-        Vec3 cam             = ctx.levelState().cameraRenderState.pos;
+    private static void emitGizmos(Minecraft client) {
+        if (client.level == null) return;
+        if (!SelectionPreview.shouldRenderWorld() && !ghostActive) return;
 
-        boolean drew = false;
+        try (Gizmos.TemporaryCollection ignored = client.collectPerTickGizmos()) {
+            if (SelectionPreview.shouldRenderWorld()) {
+                AABB box = SelectionPreview.selectionBounds();
+                if (box != null) {
+                    Gizmos.cuboid(box.inflate(PADDING), GizmoStyle.fill(CopyPasterConfig.selectionFillArgb()))
+                            .setAlwaysOnTop();
+                }
+            }
 
-        if (ghostActive) {
-            drawBox(matrices, lines, cam, ghostX, ghostY, ghostZ, ghostSX, ghostSY, ghostSZ, GHOST_COLOR);
-            drew = true;
+            if (ghostActive) {
+                AABB ghost = new AABB(ghostX, ghostY, ghostZ,
+                        ghostX + ghostSX, ghostY + ghostSY, ghostZ + ghostSZ).inflate(PADDING);
+                Gizmos.cuboid(ghost, GizmoStyle.fill(GHOST_FILL)).setAlwaysOnTop();
+            }
         }
-
-        BlockPos p1 = selPos1, p2 = selPos2;
-        if (p1 != null && p2 != null) {
-            int minX = Math.min(p1.getX(), p2.getX()), maxX = Math.max(p1.getX(), p2.getX()) + 1;
-            int minY = Math.min(p1.getY(), p2.getY()), maxY = Math.max(p1.getY(), p2.getY()) + 1;
-            int minZ = Math.min(p1.getZ(), p2.getZ()), maxZ = Math.max(p1.getZ(), p2.getZ()) + 1;
-            drawBox(matrices, lines, cam, minX, minY, minZ, maxX-minX, maxY-minY, maxZ-minZ, SEL_COLOR);
-            drew = true;
-        } else if (p1 != null) {
-            drawBox(matrices, lines, cam, p1.getX(), p1.getY(), p1.getZ(), 1, 1, 1, POS1_COLOR);
-            drew = true;
-        } else if (p2 != null) {
-            drawBox(matrices, lines, cam, p2.getX(), p2.getY(), p2.getZ(), 1, 1, 1, POS2_COLOR);
-            drew = true;
-        }
-
-        if (drew) buf.endBatch(RenderTypes.lines());
-    }
-
-    private static void drawBox(PoseStack matrices, VertexConsumer consumer, Vec3 cam,
-                                 int ox, int oy, int oz, int sx, int sy, int sz, int color) {
-        VoxelShape shape = Shapes.create(0, 0, 0, sx, sy, sz);
-        ShapeRenderer.renderShape(matrices, consumer, shape,
-                ox - cam.x, oy - cam.y, oz - cam.z, color, 1.0f);
     }
 
     private GhostRenderer() {}
