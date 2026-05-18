@@ -145,6 +145,31 @@ Requires **Java 25**. See [`CLAUDE.md`](CLAUDE.md) for deploy runbook (Fabric on
 
 ---
 
+## Roadmap
+
+Planned work — not implemented yet.
+
+### In-game functionality
+
+- **Paste at** — optional world coordinates; player-relative paste remains the default
+- **Rotation / mirror** on paste
+- **Paste without air** — only place non-air blocks from the structure
+- **Paste with physics** — no air below pasted blocks (support blocks stay filled)
+- **Persistent undo** — survive server restarts
+- **Permissions** instead of raw operator for all commands
+- **Paste preview rotation** in the client ghost
+- **Config** — max volume, session timeout, default web port (YAML + optional Mod Menu)
+- **Copy locator metadata** — store capture origin and last paste in `.json`; expose in `/copyinfo` and the web UI
+
+### Web viewer
+
+- **Sign text**, **item frames**, and **paintings** in 3D
+- **More modded blocks** — texture and display handling beyond vanilla + current fallbacks
+- **Banner pattern composing** — full pattern NBT on banner geometry (not base dye only)
+- **Performance mode** for huge structures — LOD or cull distant voxels
+
+---
+
 ## License
 
 See repository license file if present; otherwise treat as private CrazyHouse tooling until a license is added.
