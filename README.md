@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Copy Paster — copy and paste Minecraft structures with player-relative positioning" width="640">
+  <img src="docs/banner.png?bump=1" alt="Copy Paster — copy and paste Minecraft structures with player-relative positioning" width="640">
 </p>
 
 <p align="center">
