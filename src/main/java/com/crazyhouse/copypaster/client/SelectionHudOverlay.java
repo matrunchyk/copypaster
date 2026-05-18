@@ -9,6 +9,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import com.crazyhouse.copypaster.service.StructureStorageService;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -138,6 +139,10 @@ public enum SelectionHudOverlay implements HudElement {
     }
 
     private static Component hintLine() {
+        if (SelectionPreview.blockVolume() > StructureStorageService.MAX_VOLUME) {
+            return Component.translatable("copypaster.overlay.region_too_large",
+                    SelectionPreview.blockVolume(), StructureStorageService.MAX_VOLUME);
+        }
         return switch (SelectionPreview.phase()) {
             case SELECTING -> SelectionPreview.hasStart()
                     ? Component.translatable("copypaster.hud.hint.corner2")

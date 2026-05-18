@@ -13,10 +13,7 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.io.*;
@@ -112,13 +109,25 @@ public class StructureStorageService {
     }
 
     public StructureTemplate loadTemplate(String name, HolderLookup.Provider registries) throws IOException {
-        CompoundTag tag;
-        try (InputStream is = Files.newInputStream(getNbtPath(name))) {
-            tag = NbtIo.readCompressed(is, NbtAccounter.unlimitedHeap());
-        }
+        CompoundTag tag = readTemplateTag(name);
         StructureTemplate template = new StructureTemplate();
         template.load(registries.lookupOrThrow(Registries.BLOCK), tag);
         return template;
+    }
+
+    public CompoundTag readTemplateTag(String name) throws IOException {
+        try (InputStream is = Files.newInputStream(getNbtPath(name))) {
+            return NbtIo.readCompressed(is, NbtAccounter.unlimitedHeap());
+        }
+    }
+
+    public void saveTemplate(String name, StructureTemplate template, HolderLookup.Provider registries)
+            throws IOException {
+        Files.createDirectories(structuresDir);
+        CompoundTag tag = template.save(new CompoundTag());
+        try (OutputStream os = Files.newOutputStream(getNbtPath(name))) {
+            NbtIo.writeCompressed(tag, os);
+        }
     }
 
     // ── Paste helpers ─────────────────────────────────────────────────────────

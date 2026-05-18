@@ -7,7 +7,9 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import com.crazyhouse.copypaster.service.StructureStorageService;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -282,6 +284,12 @@ public final class SelectionPreview {
             return;
         }
 
+        if (cachedVolume > StructureStorageService.MAX_VOLUME) {
+            blockCounts = List.of();
+            entityCounts = List.of();
+            return;
+        }
+
         Map<Block, Integer> counts = new LinkedHashMap<>();
         for (int y = minInclusive.getY(); y <= maxInclusive.getY(); y++) {
             for (int x = minInclusive.getX(); x <= maxInclusive.getX(); x++) {
@@ -304,7 +312,7 @@ public final class SelectionPreview {
         }
         Map<String, EntityCount> entityMap = new LinkedHashMap<>();
         for (Entity entity : level.getEntitiesOfClass(Entity.class, box, e -> !(e instanceof Player))) {
-            ItemStack icon = entity.getPickResult();
+            ItemStack icon = entityPickIcon(entity);
             if (icon.isEmpty()) continue;
             String key = entity.getType().getDescriptionId() + "|" + icon.getItem();
             entityMap.compute(key, (k, existing) -> {
@@ -317,5 +325,16 @@ public final class SelectionPreview {
         entityCounts = entityMap.values().stream()
                 .sorted(Comparator.comparingInt(EntityCount::count).reversed())
                 .toList();
+    }
+
+  /** getPickResult() is null for some entities (e.g. villagers, item frames). */
+    private static ItemStack entityPickIcon(Entity entity) {
+        ItemStack icon = entity.getPickResult();
+        if (icon != null && !icon.isEmpty()) {
+            return icon;
+        }
+        return SpawnEggItem.byId(entity.getType())
+                .map(holder -> new ItemStack(holder.value()))
+                .orElse(ItemStack.EMPTY);
     }
 }

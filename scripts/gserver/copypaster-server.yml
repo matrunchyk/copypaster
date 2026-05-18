@@ -1,0 +1,6 @@
+web:
+  enabled: true
+  port: 8792
+  bind: 0.0.0.0
+  publicHost: 192.168.50.100
+  authToken: ""

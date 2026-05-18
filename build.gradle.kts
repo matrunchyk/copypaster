@@ -3,7 +3,7 @@ plugins {
     java
 }
 
-version = "2.1.0"
+version = "3.0.0"
 group = "com.crazyhouse.copypaster"
 
 base {
@@ -35,4 +35,22 @@ java {
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
     options.release.set(25)
+}
+
+val buildWeb = tasks.register<Exec>("buildWeb") {
+    group = "build"
+    description = "Build the embedded web UI (requires Node.js)"
+    workingDir = file("web")
+    commandLine(
+        if (System.getProperty("os.name").lowercase().contains("win")) "npm.cmd" else "npm",
+        "run", "build"
+    )
+    onlyIf {
+        System.getenv("SKIP_WEB_BUILD") == null
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(buildWeb)
+    inputs.dir("src/main/resources/copypaster/web")
 }

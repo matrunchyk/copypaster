@@ -5,6 +5,7 @@ import com.crazyhouse.copypaster.model.UndoSnapshot;
 import com.crazyhouse.copypaster.net.CopySelectPayload;
 import com.crazyhouse.copypaster.net.GhostPayload;
 import com.crazyhouse.copypaster.service.StructureStorageService;
+import com.crazyhouse.copypaster.web.CopyPasterServerConfig;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -99,6 +100,11 @@ public final class CopyPasterCommands {
                     .executes(ctx -> doInfo(
                         (ServerPlayer) ctx.getSource().getEntity(),
                         StringArgumentType.getString(ctx, "name")))));
+
+            // /copyweb
+            dispatcher.register(Commands.literal("copyweb")
+                .requires(CopyPasterCommands::isOp)
+                .executes(ctx -> doCopyWeb((ServerPlayer) ctx.getSource().getEntity())));
 
             // /copydelete <name>
             dispatcher.register(Commands.literal("copydelete")
@@ -301,6 +307,20 @@ public final class CopyPasterCommands {
             .withStyle(ChatFormatting.GREEN));
         CopyPasterMod.LOGGER.info("[UNDO] {} undid paste {} ('{}' by {})",
             player.getName().getString(), pasteId, snap.structureName(), snap.playerName());
+        return 1;
+    }
+
+    private static int doCopyWeb(ServerPlayer player) {
+        if (!CopyPasterServerConfig.webEnabled()) {
+            player.sendSystemMessage(Component.translatable("copypaster.message.web_disabled")
+                .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        player.sendSystemMessage(Component.translatable("copypaster.message.web_url",
+                Component.literal(CopyPasterServerConfig.webUrlHint()).withStyle(ChatFormatting.AQUA))
+            .withStyle(ChatFormatting.GREEN));
+        player.sendSystemMessage(Component.translatable("copypaster.message.web_token_hint")
+            .withStyle(ChatFormatting.GRAY));
         return 1;
     }
 

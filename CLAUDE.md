@@ -116,6 +116,21 @@ copy_paster/
 - `KeyHandler` — optional legacy coord shortcut
 - `CopyPasterConfig` — highlight colour from YAML; Mod Menu + Cloth Config optional
 
+**Web UI** (`com.crazyhouse.copypaster.web`, server-only):
+
+- `CopyPasterServerConfig` — `config/copypaster-server.yml` (`web.enabled`, port **8792**, bind, Bearer token)
+- `StructureWebServer` — embedded `HttpServer`; static SPA from `copypaster/web/` in the JAR
+- `StructureModelService` — export/import structures as JSON via vanilla `StructureTemplate` (includes `blockEntity` NBT per block)
+- Build SPA: `web/` (Vite + React + Three.js) → `./gradlew buildWeb` or full `jar`
+
+**Web SPA** (`web/src/`, bundled into the JAR):
+
+- `StructureViewer` — instanced cubes, layer filter, Colors/Textures modes
+- `blockTextures.ts` — asset URL resolution, cutout/transparent flags, mod fallbacks
+- `*Texture.ts` — composed loaders (banner, bed, chest, bell, skull, turf, …)
+- `displayBlocks.ts` — thin meshes for fences, banners, bells, lanterns, skulls
+- `ViewerKeyboardControls` — WASD camera pan
+
 **Copy flow (interactive):** `/copy` → client highlight + attack corner 1 & 2 → C2S complete → server `PENDING` → chat name (60 s, `cancel`) → `.nbt` + `.json`.
 
 **Copy flow (legacy):** `/copy x1 y1 z1 x2 y2 z2` or bound `[`/`]` keybinds → same chat-name step.
@@ -138,6 +153,7 @@ copy_paster/
 | `/copylist` | List saved structures |
 | `/copyinfo <name>` | Size, dimension, offset, creator, date |
 | `/copydelete <name>` | Remove `.nbt` and `.json` |
+| `/copyweb` | Print web UI URL when `web.enabled` |
 
 ---
 
@@ -168,8 +184,8 @@ Keybinds are **unbound by default** — assign under **Options → Controls → 
 
 ## Roadmap
 
-- **Web UI — copy viewer** — browser 3-D / isometric viewer for saved `.nbt` structures
-- **Web UI — copy editor** — replace block types in a saved copy before pasting
+- **Web UI — banner patterns in 3D** — per-face or billboard geometry for composed banner NBT
+- **Used-blocks report** — `/copyinfo` or `/copyblocks` shopping list of block types and counts
 
 ---
 

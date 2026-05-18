@@ -8,7 +8,10 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.world.InteractionResult;
 import com.crazyhouse.copypaster.service.StructureStorageService;
+import com.crazyhouse.copypaster.web.CopyPasterServerConfig;
+import com.crazyhouse.copypaster.web.StructureWebServer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -17,6 +20,7 @@ import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +35,7 @@ public class CopyPasterMod implements ModInitializer {
     public static final Map<String, UndoSnapshot> UNDOS = new ConcurrentHashMap<>();
     public static final long SESSION_TIMEOUT_MS = 60_000L;
     public static StructureStorageService STORAGE;
+    private static StructureWebServer WEB_SERVER;
 
     private static final Pattern VALID_NAME = Pattern.compile("^[a-zA-Z0-9_-]{1,64}$");
 
@@ -38,6 +43,7 @@ public class CopyPasterMod implements ModInitializer {
     public void onInitialize() {
         Path dataDir = FabricLoader.getInstance().getGameDir().resolve("copypaster");
         STORAGE = new StructureStorageService(dataDir);
+        CopyPasterServerConfig.load();
 
         CopyPasterNetworking.registerPayloadTypes();
 
@@ -104,6 +110,23 @@ public class CopyPasterMod implements ModInitializer {
             PENDING.remove(id);
             if (SELECTING.remove(id) != null) {
                 CopyPasterCommands.sendSelectionClear(handler.getPlayer());
+            }
+        });
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            if (!CopyPasterServerConfig.webEnabled()) return;
+            try {
+                WEB_SERVER = new StructureWebServer(STORAGE);
+                WEB_SERVER.start(server);
+            } catch (IOException e) {
+                LOGGER.error("Failed to start CopyPaster web UI: {}", e.getMessage(), e);
+            }
+        });
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            if (WEB_SERVER != null) {
+                WEB_SERVER.stop();
+                WEB_SERVER = null;
             }
         });
 

@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Minecraft-26.1.2-green?style=flat-square" alt="Minecraft 26.1.2">
   <img src="https://img.shields.io/badge/Fabric-0.19.2-DBD0B4?style=flat-square&logo=fabricmc&logoColor=white" alt="Fabric Loader 0.19.2">
   <img src="https://img.shields.io/badge/Java-25-blue?style=flat-square&logo=openjdk&logoColor=white" alt="Java 25">
-  <img src="https://img.shields.io/badge/version-2.1.0-informational?style=flat-square" alt="Version 2.1.0">
+  <img src="https://img.shields.io/badge/version-3.0.0-informational?style=flat-square" alt="Version 3.0.0">
 </p>
 
 ---
@@ -22,6 +22,7 @@
 - **Undo** — `/pasteundo` restores the last paste (in-memory until restart)  
 - **Ukrainian (`uk_ua`)** — full UI strings alongside English  
 - **Configurable highlights** — `config/copypaster.yml` or optional Mod Menu + Cloth Config  
+- **Web UI** (optional) — browser 3D viewer/editor with **texture-accurate** block preview, palette remap, voxel paint  
 
 > Maintainer docs: [`CLAUDE.md`](CLAUDE.md) · Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 
@@ -72,8 +73,33 @@
 | `/copylist` | List saved structures |
 | `/copyinfo <name>` | Size, dimension, offset, metadata |
 | `/copydelete <name>` | Remove `.nbt` + `.json` |
+| `/copyweb` | Print web UI URL (when enabled) |
 
 All commands require **operator** on the server.
+
+---
+
+## Web UI (viewer + editor)
+
+Optional **browser** interface for saved structures. Disabled by default.
+
+| Feature | Description |
+|---------|-------------|
+| **3D viewer** | Orbit + **WASD** pan, layer slider, isometric toggle |
+| **Colors / Textures** | Map-color cubes or Minecraft 1.21.4 textures (cutout, glass, entity blocks) |
+| **Palette remap** | Replace one block type with another across the structure |
+| **Voxel paint** | Click blocks to repaint or erase |
+| **Download** | Export edited `.nbt` |
+
+1. On the server, edit `config/copypaster-server.yml`:
+   - `web.enabled: true`
+   - `web.bind: 127.0.0.1` (or `0.0.0.0` for LAN/VPN)
+   - `web.publicHost: 192.168.50.100` (optional URL hint in logs)
+   - Copy `web.authToken` for the browser login screen
+2. Restart the server. Run **`/copyweb`** in-game for the URL.
+3. Open the URL, paste the token, select a structure, edit, **Save** — then `/paste` in-game as usual.
+
+Default port: **8792** (change with `web.port`). Build embedded assets: `./gradlew buildWeb` (included in `./gradlew jar`). After a server update, hard-refresh the browser (`Ctrl+Shift+R`).
 
 ---
 
@@ -85,6 +111,15 @@ All commands require **operator** on the server.
 | Attack block | Set corners 1 → 2 |
 | Use | Cancel selection |
 | **`[`** / **`]`** (if bound) | Legacy corner shortcut |
+
+### Web viewer (when enabled)
+
+| Input | Action |
+|-------|--------|
+| Drag | Orbit camera |
+| Scroll | Zoom |
+| **W** / **A** / **S** / **D** | Pan (click viewer first) |
+| **Q** / **E** | Down / up |
 
 ---
 
