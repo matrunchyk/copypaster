@@ -1,5 +1,6 @@
 package com.crazyhouse.copypaster.web;
 
+import com.crazyhouse.copypaster.CopyPasterMod;
 import com.crazyhouse.copypaster.service.StructureStorageService;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -56,7 +57,7 @@ public final class StructureModelService {
         int sizeY = size.getY() > 0 ? size.getY() : meta.sizeY();
         int sizeZ = size.getZ() > 0 ? size.getZ() : meta.sizeZ();
         List<StructureTemplate.StructureBlockInfo> blockInfos = allBlocksFromTemplate(template);
-        if ((long) sizeX * sizeY * sizeZ > StructureStorageService.MAX_VOLUME) {
+        if ((long) sizeX * sizeY * sizeZ > CopyPasterMod.STORAGE.maxVolume()) {
             throw new IOException("Structure exceeds max volume");
         }
 
@@ -168,10 +169,10 @@ public final class StructureModelService {
         int sizeY = size.getY() > 0 ? size.getY() : meta.sizeY();
         int sizeZ = size.getZ() > 0 ? size.getZ() : meta.sizeZ();
         int vol = sizeX * sizeY * sizeZ;
-        if (vol > StructureStorageService.MAX_VOLUME) {
+        if (vol > CopyPasterMod.STORAGE.maxVolume()) {
             throw new IOException("Structure exceeds max volume");
         }
-        if (voxelMap.size() > StructureStorageService.MAX_VOLUME) {
+        if (voxelMap.size() > CopyPasterMod.STORAGE.maxVolume()) {
             throw new IOException("Too many blocks after edit");
         }
 

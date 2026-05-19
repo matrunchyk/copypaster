@@ -3,7 +3,7 @@ plugins {
     java
 }
 
-version = "3.0.0"
+version = "3.1.0"
 group = "com.crazyhouse.copypaster"
 
 base {
@@ -11,6 +11,7 @@ base {
 }
 
 repositories {
+    mavenCentral()
     maven("https://maven.shedaniel.me/")
     maven("https://maven.terraformersmc.com/releases/")
     maven("https://api.modrinth.com/maven")
@@ -25,6 +26,7 @@ dependencies {
 
     compileOnly("maven.modrinth:cloth-config:26.1.154+fabric")
     compileOnly("maven.modrinth:modmenu:18.0.0-beta.1")
+    compileOnly("me.lucko:fabric-permissions-api:0.4.1")
 }
 
 java {

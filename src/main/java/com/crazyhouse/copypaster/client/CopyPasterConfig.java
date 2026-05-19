@@ -46,10 +46,12 @@ public final class CopyPasterConfig {
     private static final int DEFAULT_GREEN = 160;
     private static final int DEFAULT_BLUE = 255;
     private static final HudAnchor DEFAULT_ANCHOR = HudAnchor.TOP_CENTER;
+    private static final int DEFAULT_MAX_VOLUME = 32_768;
 
     private static volatile int selectionColorArgb =
             ARGB.color(DEFAULT_ALPHA, DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
     private static volatile HudAnchor hudAnchor = DEFAULT_ANCHOR;
+    private static volatile int maxVolume = DEFAULT_MAX_VOLUME;
 
     static void load() {
         Path path = configPath();
@@ -71,19 +73,32 @@ public final class CopyPasterConfig {
             if (map.get("hudAnchor") instanceof String anchorId) {
                 hudAnchor = HudAnchor.fromId(anchorId);
             }
+            Object limits = map.get("limits");
+            if (limits instanceof Map<?, ?> lim) {
+                maxVolume = intVal(lim.get("maxVolume"), DEFAULT_MAX_VOLUME);
+            }
         } catch (IOException e) {
             CopyPasterClientMod.LOGGER.warn("Failed to read {}: {}", path, e.getMessage());
         }
     }
 
     static void save(int alpha, int red, int green, int blue, HudAnchor anchor) {
+        save(alpha, red, green, blue, anchor, maxVolume);
+    }
+
+    static void save(int alpha, int red, int green, int blue, HudAnchor anchor, int volumeLimit) {
         alpha = clamp(alpha);
         red = clamp(red);
         green = clamp(green);
         blue = clamp(blue);
         selectionColorArgb = ARGB.color(alpha, red, green, blue);
         hudAnchor = anchor == null ? DEFAULT_ANCHOR : anchor;
+        maxVolume = Math.max(1, volumeLimit);
         writeYaml();
+    }
+
+    static int maxVolume() {
+        return maxVolume;
     }
 
     static int selectionColorArgb() {
@@ -140,8 +155,11 @@ public final class CopyPasterConfig {
         highlight.put("green", selectionGreen());
         highlight.put("blue", selectionBlue());
         Map<String, Object> root = new LinkedHashMap<>();
+        Map<String, Object> limits = new LinkedHashMap<>();
+        limits.put("maxVolume", maxVolume);
         root.put("selectionHighlight", highlight);
         root.put("hudAnchor", hudAnchor.id());
+        root.put("limits", limits);
 
         Path path = configPath();
         try {

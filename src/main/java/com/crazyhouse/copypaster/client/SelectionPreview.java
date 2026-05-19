@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import com.crazyhouse.copypaster.service.StructureStorageService;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
@@ -192,9 +191,8 @@ public final class SelectionPreview {
     public static void setAnchorStart(BlockPos pos) {
         ensureSelecting();
         anchorStart = pos.immutable();
-        if (anchorEnd == null) {
-            anchorEnd = anchorStart;
-        }
+        anchorEnd = null;
+        endLocked = false;
         lastHover = null;
         recomputeBounds();
         lastScanGameTime = -1;
@@ -284,7 +282,7 @@ public final class SelectionPreview {
             return;
         }
 
-        if (cachedVolume > StructureStorageService.MAX_VOLUME) {
+        if (cachedVolume > CopyPasterConfig.maxVolume()) {
             blockCounts = List.of();
             entityCounts = List.of();
             return;

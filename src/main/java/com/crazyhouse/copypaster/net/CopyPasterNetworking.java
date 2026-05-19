@@ -16,8 +16,8 @@ public final class CopyPasterNetworking {
         if (registered) return;
 
         PayloadTypeRegistry.clientboundPlay().register(GhostPayload.TYPE, GhostPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(CopySelectPayload.TYPE, CopySelectPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(CopySelectPayload.TYPE, CopySelectPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(CopyRegionPayload.TYPE, CopyRegionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(CopyRegionPayload.TYPE, CopyRegionPayload.CODEC);
 
         registered = true;
     }

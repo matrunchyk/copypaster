@@ -6,31 +6,27 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /**
- * S2C packet that tells the client where a /paste will land.
- * Sent when the player runs /paste name (no confirm) and there are
- * blocks to overwrite.  active=false clears the ghost on the client.
- *
- * Must match the client-side copy in copy_paster_client exactly.
+ * S2C paste preview: axis-aligned world bounds (handles rotation/mirror on server).
+ * {@code active=false} clears the ghost.
  */
 public record GhostPayload(boolean active,
-                            int originX, int originY, int originZ,
-                            int sizeX, int sizeY, int sizeZ)
+                            int minX, int minY, int minZ,
+                            int maxX, int maxY, int maxZ)
         implements CustomPacketPayload {
 
     public static final Type<GhostPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath("copypaster", "ghost"));
 
-    /** StreamCodec<RegistryFriendlyByteBuf, GhostPayload> — encoder is (buf, value). */
     public static final StreamCodec<RegistryFriendlyByteBuf, GhostPayload> CODEC =
             StreamCodec.of(
                     (buf, value) -> {
                         buf.writeBoolean(value.active());
-                        buf.writeInt(value.originX());
-                        buf.writeInt(value.originY());
-                        buf.writeInt(value.originZ());
-                        buf.writeInt(value.sizeX());
-                        buf.writeInt(value.sizeY());
-                        buf.writeInt(value.sizeZ());
+                        buf.writeInt(value.minX());
+                        buf.writeInt(value.minY());
+                        buf.writeInt(value.minZ());
+                        buf.writeInt(value.maxX());
+                        buf.writeInt(value.maxY());
+                        buf.writeInt(value.maxZ());
                     },
                     buf -> new GhostPayload(
                             buf.readBoolean(),
@@ -38,6 +34,10 @@ public record GhostPayload(boolean active,
                             buf.readInt(), buf.readInt(), buf.readInt()
                     )
             );
+
+    public static GhostPayload clear() {
+        return new GhostPayload(false, 0, 0, 0, 0, 0, 0);
+    }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

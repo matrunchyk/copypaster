@@ -16,14 +16,28 @@ import net.minecraft.world.phys.AABB;
 public final class GhostRenderer {
 
     static volatile boolean ghostActive = false;
-    static volatile int ghostX, ghostY, ghostZ;
-    static volatile int ghostSX, ghostSY, ghostSZ;
+    static volatile int ghostMinX, ghostMinY, ghostMinZ;
+    static volatile int ghostMaxX, ghostMaxY, ghostMaxZ;
 
     private static final int GHOST_FILL = ARGB.color(64, 64, 216, 255);
     private static final float PADDING = 0.002f;
 
     static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(GhostRenderer::emitGizmos);
+    }
+
+    static void setGhostBounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        ghostActive = true;
+        ghostMinX = minX;
+        ghostMinY = minY;
+        ghostMinZ = minZ;
+        ghostMaxX = maxX;
+        ghostMaxY = maxY;
+        ghostMaxZ = maxZ;
+    }
+
+    static void clearGhost() {
+        ghostActive = false;
     }
 
     private static void emitGizmos(Minecraft client) {
@@ -40,8 +54,8 @@ public final class GhostRenderer {
             }
 
             if (ghostActive) {
-                AABB ghost = new AABB(ghostX, ghostY, ghostZ,
-                        ghostX + ghostSX, ghostY + ghostSY, ghostZ + ghostSZ).inflate(PADDING);
+                AABB ghost = new AABB(ghostMinX, ghostMinY, ghostMinZ, ghostMaxX, ghostMaxY, ghostMaxZ)
+                        .inflate(PADDING);
                 Gizmos.cuboid(ghost, GizmoStyle.fill(GHOST_FILL)).setAlwaysOnTop();
             }
         }

@@ -57,9 +57,20 @@ public final class ModMenuIntegration implements ModMenuApi {
                 CopyPasterConfig::hudAnchor);
         hud.addEntry(anchorPicker);
 
+        ConfigCategory limits = builder.getOrCreateCategory(
+                Component.translatable("copypaster.config.category_limits"));
+        var maxVol = entry.startIntField(
+                        Component.translatable("copypaster.config.max_volume"),
+                        CopyPasterConfig.maxVolume())
+                .setDefaultValue(32_768)
+                .setMin(1)
+                .setMax(1_000_000)
+                .build();
+        limits.addEntry(maxVol);
+
         builder.setSavingRunnable(() -> CopyPasterConfig.save(
                 alpha.getValue(), red.getValue(), green.getValue(), blue.getValue(),
-                anchorPicker.getValue()));
+                anchorPicker.getValue(), maxVol.getValue()));
 
         return builder.build();
     }

@@ -14,7 +14,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.phys.AABB;
 
 import java.io.*;
 import java.nio.file.*;
@@ -33,15 +35,20 @@ public class StructureStorageService {
     ) {}
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final int MAX_VOLUME = 32_768;
+    public static final int DEFAULT_MAX_VOLUME = 32_768;
 
     private final Path structuresDir;
+    private int maxVolume = DEFAULT_MAX_VOLUME;
 
     public StructureStorageService(Path dataDir) {
         this.structuresDir = dataDir.resolve("structures");
     }
 
-    public int maxVolume() { return MAX_VOLUME; }
+    public void setMaxVolume(int maxVolume) {
+        this.maxVolume = maxVolume;
+    }
+
+    public int maxVolume() { return maxVolume; }
 
     public Path getNbtPath(String name) { return structuresDir.resolve(name + ".nbt"); }
     public Path getMetaPath(String name) { return structuresDir.resolve(name + ".json"); }
@@ -132,25 +139,36 @@ public class StructureStorageService {
 
     // ── Paste helpers ─────────────────────────────────────────────────────────
 
-    public int countNonAir(ServerLevel level, BlockPos origin, int sizeX, int sizeY, int sizeZ) {
-        loadChunks(level, origin, origin.offset(sizeX - 1, sizeY - 1, sizeZ - 1));
+    public int countNonAirInBox(ServerLevel level, AABB box) {
+        BlockPos min = BlockPos.containing(box.minX, box.minY, box.minZ);
+        BlockPos max = BlockPos.containing(box.maxX - 1.0E-5, box.maxY - 1.0E-5, box.maxZ - 1.0E-5);
+        loadChunks(level, min, max);
         int count = 0;
-        for (int dy = 0; dy < sizeY; dy++)
-            for (int dx = 0; dx < sizeX; dx++)
-                for (int dz = 0; dz < sizeZ; dz++)
-                    if (!level.getBlockState(origin.offset(dx, dy, dz)).isAir()) count++;
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) count++;
+                }
+            }
+        }
         return count;
     }
 
-    public List<UndoSnapshot.BlockSnapshot> captureRegion(ServerLevel level, BlockPos origin, int sizeX, int sizeY, int sizeZ) {
-        loadChunks(level, origin, origin.offset(sizeX - 1, sizeY - 1, sizeZ - 1));
-        List<UndoSnapshot.BlockSnapshot> snaps = new ArrayList<>(sizeX * sizeY * sizeZ);
-        for (int dy = 0; dy < sizeY; dy++)
-            for (int dx = 0; dx < sizeX; dx++)
-                for (int dz = 0; dz < sizeZ; dz++) {
-                    BlockPos pos = origin.offset(dx, dy, dz);
-                    snaps.add(new UndoSnapshot.BlockSnapshot(pos.immutable(), level.getBlockState(pos)));
+    public List<UndoSnapshot.BlockSnapshot> captureRegionInBox(ServerLevel level, AABB box) {
+        BlockPos min = BlockPos.containing(box.minX, box.minY, box.minZ);
+        BlockPos max = BlockPos.containing(box.maxX - 1.0E-5, box.maxY - 1.0E-5, box.maxZ - 1.0E-5);
+        loadChunks(level, min, max);
+        int volume = (max.getX() - min.getX() + 1) * (max.getY() - min.getY() + 1) * (max.getZ() - min.getZ() + 1);
+        List<UndoSnapshot.BlockSnapshot> snaps = new ArrayList<>(volume);
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = level.getBlockState(pos);
+                    snaps.add(new UndoSnapshot.BlockSnapshot(pos.immutable(), state));
                 }
+            }
+        }
         return snaps;
     }
 

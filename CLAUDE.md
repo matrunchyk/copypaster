@@ -2,7 +2,7 @@
 
 # Copy Paster
 
-Fabric **client + server** mod (one JAR, install on both) that copies cuboid regions to `.nbt` files and pastes them back with **player-relative offset** positioning. Op-only Brigadier commands on the server; selection highlights, input handling, and config on the client.
+Fabric **client + server** mod (one JAR, install on both) that copies cuboid regions to `.nbt` files and pastes them back with **player-relative offset** positioning. Copy via **`[` / `]`** keybinds (client); paste and management commands on the server. **Operators always have access.** With LuckPerms, non-ops need `copypaster.*` nodes.
 
 | | |
 |---|---|
@@ -65,9 +65,9 @@ ssh gserver 'powershell -Command "Start-Sleep 25; Get-Content D:\\Games\\Minecra
 python3 scripts/gserver/minecraft_rcon.py say "[CopyPaster] deployed."
 ```
 
-**Players:** install the **same JAR** in the client `mods/` folder for interactive `/copy`, paste ghost preview, and optional keybinds.
+**Players:** install the **same JAR** in the client `mods/` folder for **`[` / `]`** copy, selection HUD, and paste ghost preview.
 
-**Degraded mode:** server-only install — use `/copy x1 y1 z1 x2 y2 z2` and all `/paste` commands; bare `/copy` is rejected without the client mod.
+**Degraded mode:** server-only install — `/paste`, list/info/delete/web still work; **no in-game world copy** without the client mod and keybinds.
 
 ---
 
@@ -78,18 +78,20 @@ copy_paster/
 ├── CHANGELOG.md
 ├── build.gradle.kts
 ├── src/main/java/com/crazyhouse/copypaster/
-│   ├── CopyPasterMod.java              # Server init, PENDING, SELECTING, chat capture
-│   ├── CopyPasterCommands.java         # Brigadier commands
+│   ├── CopyPasterMod.java              # Server init, PENDING, chat capture
+│   ├── CopyPasterCommands.java         # Brigadier commands + paste execution
+│   ├── CopyPasterPermissions.java      # Op bypass; LuckPerms nodes for non-ops
+│   ├── paste/                          # PasteOptions, PasteGeometry, PasteCommandTree
 │   ├── client/
 │   │   ├── CopyPasterClientMod.java
-│   │   ├── CopySelectionHandler.java   # Interactive /copy input
+│   │   ├── KeyHandler.java             # [ ] → CopyRegionPayload C2S
+│   │   ├── CopyRegionClientHandler.java
 │   │   ├── CopyPasterConfig.java       # config/copypaster.yml
 │   │   ├── ModMenuIntegration.java     # Optional Mod Menu → Cloth Config
-│   │   ├── KeyHandler.java             # Legacy [ ] → coord /copy
 │   │   └── GhostRenderer.java          # Wireframe overlays
 │   ├── net/
-│   │   ├── GhostPayload.java           # S2C paste preview
-│   │   └── CopySelectPayload.java      # S2C/C2S selection session
+│   │   ├── GhostPayload.java           # S2C paste preview (world AABB)
+│   │   └── CopyRegionPayload.java      # C2S copy region + S2C HUD sync
 │   └── service/StructureStorageService.java
 └── src/main/resources/
     ├── fabric.mod.json
@@ -104,21 +106,19 @@ copy_paster/
 
 - Structure storage under `<gameDir>/copypaster/structures/`
 - `PENDING` — waiting for structure name in chat after region selected
-- `SELECTING` — interactive `/copy` session until C2S complete/cancel
 - `UNDOS` — in-memory paste undo (lost on restart)
 - Commands, validation, NBT save/load
 
 **Client JVM** (`CopyPasterClientMod`):
 
-- `CopySelectionHandler` — attack corners, use to cancel, C2S complete
-- `GhostRenderer` — wireframe highlights (no custom shaders)
-- `GhostPayload` receiver — paste overwrite preview
-- `KeyHandler` — optional legacy coord shortcut
-- `CopyPasterConfig` — highlight colour from YAML; Mod Menu + Cloth Config optional
+- `KeyHandler` — `[` / `]` corners → `CopyRegionPayload` C2S
+- `GhostRenderer` — selection + paste ghost (no custom shaders)
+- `GhostPayload` receiver — paste overwrite preview (rotated AABB from server)
+- `CopyPasterConfig` — highlight colour + preview volume from YAML; Mod Menu optional
 
 **Web UI** (`com.crazyhouse.copypaster.web`, server-only):
 
-- `CopyPasterServerConfig` — `config/copypaster-server.yml` (`web.enabled`, port **8792**, bind, Bearer token)
+- `CopyPasterServerConfig` — `config/copypaster-server.yml` (`limits.*`, `web.enabled`, port **8792**, bind, Bearer token)
 - `StructureWebServer` — embedded `HttpServer`; static SPA from `copypaster/web/` in the JAR
 - `StructureModelService` — export/import structures as JSON via vanilla `StructureTemplate` (includes `blockEntity` NBT per block)
 - Build SPA: `web/` (Vite + React + Three.js) → `./gradlew buildWeb` or full `jar`
@@ -131,29 +131,31 @@ copy_paster/
 - `displayBlocks.ts` — thin meshes for fences, banners, bells, lanterns, skulls
 - `ViewerKeyboardControls` — WASD camera pan
 
-**Copy flow (interactive):** `/copy` → client highlight + attack corner 1 & 2 → C2S complete → server `PENDING` → chat name (60 s, `cancel`) → `.nbt` + `.json`.
+**Copy flow:** `[` / `]` corners → `CopyRegionPayload` C2S → server `PENDING` → chat name (`cancel`, timeout from config) → `.nbt` + `.json`.
 
-**Copy flow (legacy):** `/copy x1 y1 z1 x2 y2 z2` or bound `[`/`]` keybinds → same chat-name step.
+**Paste flow:** `/paste <name>` [modifiers] → optional cyan ghost (transformed bounds) + confirm → place + undo id.
 
-**Paste flow:** `/paste <name>` → optional cyan ghost + confirm → place + undo id.
-
-**Limits:** max volume **32 768** blocks (`StructureStorageService.MAX_VOLUME`).
+**Limits:** `limits.maxVolume` and `limits.sessionTimeoutSeconds` in `copypaster-server.yml` (defaults 32 768 / 60 s).
 
 ---
 
-## Commands (op-only)
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/copy` | Interactive selection (requires client mod) |
-| `/copy <x1> <y1> <z1> <x2> <y2> <z2>` | Legacy coordinate selection |
 | `/paste <name>` | Paste at player-relative position; warns on overwrite |
-| `/paste <name> confirm` | Paste after overwrite warning |
+| `/paste <name> at <x> <y> <z>` | Paste with min corner at coordinates |
+| `/paste <name> rotate <90\|180\|270>` | Rotate structure |
+| `/paste <name> mirror <left_right\|front_back>` | Mirror structure |
+| `/paste <name> noair` | Do not place air from the structure |
+| `/paste <name> … confirm` | Paste after overwrite warning |
 | `/pasteundo <id>` | Restore blocks from undo snapshot |
 | `/copylist` | List saved structures |
 | `/copyinfo <name>` | Size, dimension, offset, creator, date |
 | `/copydelete <name>` | Remove `.nbt` and `.json` |
 | `/copyweb` | Print web UI URL when `web.enabled` |
+
+**Permissions:** operators always allowed; with LuckPerms, non-ops need `copypaster.*` (see README).
 
 ---
 
@@ -161,14 +163,12 @@ copy_paster/
 
 | Input | Action |
 |-------|--------|
-| `/copy` | Start interactive selection |
-| Attack block | Set corner 1, then corner 2 |
-| Use (right-click) | Cancel interactive selection |
-| `[` / `]` (if bound in Controls) | Legacy: set corners and run coord `/copy` |
+| `[` / `]` (if bound in Controls) | Set corners and send region to server |
+| Chat name | Save structure after region is accepted |
 
 Keybinds are **unbound by default** — assign under **Options → Controls → Miscellaneous**.
 
-**Config:** `config/copypaster.yml` — `selectionHighlight` RGBA. Optional **Mod Menu** entry when Mod Menu + Cloth Config are installed.
+**Config:** `config/copypaster.yml` — `selectionHighlight`, `limits.maxVolume`, `hudAnchor`. Optional **Mod Menu** when Mod Menu + Cloth Config are installed.
 
 ---
 

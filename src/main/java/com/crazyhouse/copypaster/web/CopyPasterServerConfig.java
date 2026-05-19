@@ -1,6 +1,7 @@
 package com.crazyhouse.copypaster.web;
 
 import com.crazyhouse.copypaster.CopyPasterMod;
+import com.crazyhouse.copypaster.service.StructureStorageService;
 import net.fabricmc.loader.api.FabricLoader;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -25,6 +26,8 @@ public final class CopyPasterServerConfig {
     private static volatile String webBind = "127.0.0.1";
     private static volatile String webAuthToken = "";
     private static volatile String webPublicHost = "";
+    private static volatile int maxVolume = StructureStorageService.DEFAULT_MAX_VOLUME;
+    private static volatile int sessionTimeoutSeconds = 60;
 
     private CopyPasterServerConfig() {}
 
@@ -37,18 +40,24 @@ public final class CopyPasterServerConfig {
         try (Reader reader = Files.newBufferedReader(path)) {
             Object root = new Yaml().load(reader);
             if (!(root instanceof Map<?, ?> map)) return;
+            Object limits = map.get("limits");
+            if (limits instanceof Map<?, ?> lim) {
+                maxVolume = intVal(lim.get("maxVolume"), StructureStorageService.DEFAULT_MAX_VOLUME);
+                sessionTimeoutSeconds = intVal(lim.get("sessionTimeoutSeconds"), 60);
+            }
             Object web = map.get("web");
-            if (!(web instanceof Map<?, ?> w)) return;
-            webEnabled = boolVal(w.get("enabled"), false);
-            webPort = intVal(w.get("port"), 8792);
-            if (w.get("bind") instanceof String bind && !bind.isBlank()) {
-                webBind = bind.trim();
-            }
-            if (w.get("authToken") instanceof String token && !token.isBlank()) {
-                webAuthToken = token.trim();
-            }
-            if (w.get("publicHost") instanceof String host) {
-                webPublicHost = host.trim();
+            if (web instanceof Map<?, ?> w) {
+                webEnabled = boolVal(w.get("enabled"), false);
+                webPort = intVal(w.get("port"), 8792);
+                if (w.get("bind") instanceof String bind && !bind.isBlank()) {
+                    webBind = bind.trim();
+                }
+                if (w.get("authToken") instanceof String token && !token.isBlank()) {
+                    webAuthToken = token.trim();
+                }
+                if (w.get("publicHost") instanceof String host) {
+                    webPublicHost = host.trim();
+                }
             }
         } catch (IOException e) {
             CopyPasterMod.LOGGER.warn("Failed to read {}: {}", path, e.getMessage());
@@ -79,6 +88,14 @@ public final class CopyPasterServerConfig {
         return webPublicHost;
     }
 
+    public static int maxVolume() {
+        return maxVolume;
+    }
+
+    public static long sessionTimeoutMs() {
+        return sessionTimeoutSeconds * 1000L;
+    }
+
     public static String webUrlHint() {
         String host = webPublicHost.isBlank() ? webBind : webPublicHost;
         if ("0.0.0.0".equals(host)) {
@@ -97,17 +114,25 @@ public final class CopyPasterServerConfig {
         webBind = "127.0.0.1";
         webAuthToken = UUID.randomUUID().toString();
         webPublicHost = "";
+        maxVolume = StructureStorageService.DEFAULT_MAX_VOLUME;
+        sessionTimeoutSeconds = 60;
         writeYaml();
     }
 
     private static void writeYaml() {
+        Map<String, Object> limits = new LinkedHashMap<>();
+        limits.put("maxVolume", maxVolume);
+        limits.put("sessionTimeoutSeconds", sessionTimeoutSeconds);
+
         Map<String, Object> web = new LinkedHashMap<>();
         web.put("enabled", webEnabled);
         web.put("port", webPort);
         web.put("bind", webBind);
         web.put("authToken", webAuthToken);
         web.put("publicHost", webPublicHost);
+
         Map<String, Object> root = new LinkedHashMap<>();
+        root.put("limits", limits);
         root.put("web", web);
 
         Path path = configPath();

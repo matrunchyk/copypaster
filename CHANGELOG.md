@@ -2,6 +2,41 @@
 
 All notable changes to Copy Paster are documented in this file. Update it on every release (see [`CLAUDE.md`](CLAUDE.md)).
 
+## [Unreleased]
+
+## [3.1.0] - 2026-05-19
+
+### Added
+
+- **Keybind-only copy** — `[` / `]` select corners and send the region to the server (no `/copy` command).
+- **Paste options** — `/paste <name> at <x> <y> <z>`, `rotate 90|180|270`, `mirror left_right|front_back`, `noair`, and `confirm` (combinable).
+- **Paste ghost** — preview uses the rotated/mirrored world bounding box.
+- **LuckPerms** — permission nodes (`copypaster.copy`, `copypaster.paste`, …) when LuckPerms is installed; vanilla **operator** always allowed for in-game copy and commands.
+- **Config** — `limits.maxVolume` and `limits.sessionTimeoutSeconds` in `config/copypaster-server.yml`; client `limits.maxVolume` in `config/copypaster.yml` (+ Mod Menu slider).
+- **`CopyRegionPayload`** — C2S region + S2C HUD sync; client `CopyRegionClientHandler`.
+
+### Changed
+
+- **Permissions** — non-ops use LuckPerms nodes when LP is installed; ops bypass LP checks.
+- **Overwrite / undo** — capture and warning use the transformed paste footprint.
+- **Lang files** — removed unused keys; every `Component.translatable` key in code exists in `en_us` and `uk_ua`.
+
+### Removed
+
+- **`/copy` command** (interactive and coordinate forms).
+- **Interactive selection** — attack corners, use-to-cancel, and `CopySelectPayload` session.
+
+### Breaking
+
+- Copying in-game requires the **client mod** and bound **`[`** / **`]`** keys.
+- Server-only installs can still **paste** and use the web UI but cannot copy from the world in-game.
+
+### Fixed
+
+- **LuckPerms + copy** — permission check no longer denies **operators** who lack explicit `copypaster.copy` (and no silent failure).
+- **Client chat feedback** — corner messages use `copypaster.overlay.pos1` / `pos2_sending` (no missing translation keys).
+- **`/paste` Brigadier** — `at …` modifier branch no longer recurses infinitely.
+
 ## [3.0.0] - 2026-05-18
 
 ### Added
